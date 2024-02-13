@@ -1,6 +1,6 @@
 use std::error::Error;
 
-use sdl2::{pixels, rect::Rect, render::Canvas, video::Window};
+use sdl2::{rect::Rect, render::Canvas, video::Window, Sdl};
 
 use crate::{CHIP8_HEIGHT, CHIP8_WIDTH};
 
@@ -13,38 +13,32 @@ pub struct DisplayDriver {
 }
 
 impl DisplayDriver {
-    pub fn new(sdl_context: &sdl2::Sdl) -> Result<Self, Box<dyn Error>> {
+    pub fn new(sdl_context: &Sdl) -> Result<Self, Box<dyn Error>> {
         let video_subsystem = sdl_context.video()?;
-        let window = video_subsystem
-            .window("CHIP8 Emulator", SCREEN_WIDTH, SCREEN_HEIGHT)
+        let canvas = video_subsystem
+            .window("Rust CHIP8 emulator", SCREEN_WIDTH, SCREEN_HEIGHT)
             .position_centered()
             .opengl()
+            .build()
+            .map_err(|e| e.to_string())?
+            .into_canvas()
             .build()?;
-
-        let mut canvas = window.into_canvas().build()?;
-
-        canvas.set_draw_color(pixels::Color::BLACK);
-        canvas.clear();
-        canvas.present();
-
         Ok(DisplayDriver { canvas })
     }
 
-    pub fn draw(&mut self, vram: &[[u8; CHIP8_WIDTH]; CHIP8_HEIGHT]) -> Result<(), Box<dyn Error>> {
-        for (y, row) in vram.iter().enumerate() {
-            for (x, &col) in row.iter().enumerate() {
-                let x = (x as u32) * SCALE_FACTOR;
-                let y = (y as u32) * SCALE_FACTOR;
-
-                self.canvas.set_draw_color(match col {
-                    0 => pixels::Color::BLACK,
-                    _ => pixels::Color::GREEN,
+    pub fn draw(&mut self, vbuf: &[[u8; CHIP8_WIDTH]; CHIP8_HEIGHT]) -> Result<(), Box<dyn Error>> {
+        for (y, col) in vbuf.iter().enumerate() {
+            for (x, row) in col.iter().enumerate() {
+                self.canvas.set_draw_color(match row {
+                    0 => sdl2::pixels::Color::BLACK,
+                    _ => sdl2::pixels::Color::WHITE,
                 });
                 self.canvas
                     .fill_rect(Rect::new(x as i32, y as i32, SCALE_FACTOR, SCALE_FACTOR))?;
             }
         }
         self.canvas.present();
+
         Ok(())
     }
 }
